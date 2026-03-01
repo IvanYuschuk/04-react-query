@@ -2,7 +2,7 @@
 import './App.module.css';
 import SearchBar from '../SearchBar/SearchBar';
 import { fetchMovies } from '../../services/movieService';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Movie } from '../../types/movie';
 import  { toast, Toaster } from 'react-hot-toast';
 import MovieGrid from '../MovieGrid/MovieGrid';
@@ -27,9 +27,12 @@ function App() {
     placeholderData: keepPreviousData,
   })
   
-  if (data && data?.results.length === 0) {
+  useEffect(() => {
+    if (isSuccess && data?.results.length === 0) {
     enterSearchToast();
-  }
+    }
+  }, [data, isSuccess])
+
   const totalPages = data?.total_pages ?? 0;  
 
   const handleSearch = async (newTopic: string) => {
@@ -39,14 +42,12 @@ function App() {
   
  
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null)
   const openMovieModal = (moviesObj: Movie) => {
-    setIsModalOpen(true); 
     setSelectedMovie(moviesObj);
   }
   const closeMovieModal = () => {
-    setIsModalOpen(false);
     setSelectedMovie(null);
   };
   
@@ -66,8 +67,8 @@ function App() {
       />)}
       { isLoading && (<Loader />) }
       { isError && (<ErrorMessage />) }
-      { data && data.results.length > 0 && isError === false && isLoading === false && (<MovieGrid movies={data.results} onSelect={openMovieModal} />) }
-      { isModalOpen && selectedMovie && (<MovieModal onClose={closeMovieModal} movie={selectedMovie} />) }
+      { data && data.results.length > 0  && (<MovieGrid movies={data.results} onSelect={openMovieModal} />) }
+      { selectedMovie && (<MovieModal onClose={closeMovieModal} movie={selectedMovie} />) }
       <Toaster />
     </>
   )
