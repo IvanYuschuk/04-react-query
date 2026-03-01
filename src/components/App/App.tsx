@@ -4,35 +4,41 @@ import SearchBar from '../SearchBar/SearchBar';
 import { fetchMovies } from '../../services/movieService';
 import { useState } from 'react';
 import type { Movie } from '../../types/movie';
-import toast, { Toaster } from 'react-hot-toast';
+import  { toast, Toaster } from 'react-hot-toast';
 import MovieGrid from '../MovieGrid/MovieGrid';
 import Loader from '../Loader/Loader';
 import ErrorMessage from '../ErrorMessage/ErrorMessage';
 import MovieModal from '../MovieModal/MovieModal';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import css from "./App.module.css";
+import ReactPaginate from 'react-paginate';
+
 
 const enterSearchToast = () => toast.error('No movies found for your request.');
 
 function App() {
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
+  const [topic, setTopic] = useState('');
+  const [page, setPage] = useState(1);
 
-  const handleSearch = async (topic: string) => {
-    try {
-      setIsLoading(true);
-      setIsError(false);
-      const data = await fetchMovies(topic);
-      setMovies(data);
-      if (data.length === 0) {
-        enterSearchToast();
-      }
-    } catch {
-      setIsError(true);
-    } finally {
-      setIsLoading(false);
-    }
+  const  { data, isError, isLoading, isSuccess } = useQuery({
+    queryKey: ['movies', topic, page],
+    queryFn: () => fetchMovies(topic, page),
+    enabled: topic !== '',
+    placeholderData: keepPreviousData,
+  })
+  
+  if (data && data?.results.length === 0) {
+    enterSearchToast();
+  }
+  const totalPages = data?.total_pages ?? 0;  
+
+  const handleSearch = async (newTopic: string) => {
+    setTopic(newTopic);
+    setPage(1);
   }
   
+ 
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null)
   const openMovieModal = (moviesObj: Movie) => {
@@ -47,10 +53,21 @@ function App() {
   return (
     <>
       <SearchBar onSubmit={handleSearch} />
-      {isLoading && (<Loader />)}
-      {isError && (<ErrorMessage />)}
-      {movies.length > 0 && isError === false && isLoading === false && (<MovieGrid movies={movies} onSelect={openMovieModal} />)}
-      {isModalOpen && selectedMovie && (<MovieModal onClose={closeMovieModal} movie={selectedMovie} />)}
+      {isSuccess && totalPages > 1 && (<ReactPaginate
+        pageCount={totalPages}
+        pageRangeDisplayed={5}
+        marginPagesDisplayed={1}
+        onPageChange={({ selected }) => setPage(selected + 1)}
+        forcePage={page - 1}
+        containerClassName={css.pagination}
+        activeClassName={css.active}
+        nextLabel="→"
+        previousLabel="←"
+      />)}
+      { isLoading && (<Loader />) }
+      { isError && (<ErrorMessage />) }
+      { data && data.results.length > 0 && isError === false && isLoading === false && (<MovieGrid movies={data.results} onSelect={openMovieModal} />) }
+      { isModalOpen && selectedMovie && (<MovieModal onClose={closeMovieModal} movie={selectedMovie} />) }
       <Toaster />
     </>
   )
